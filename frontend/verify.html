@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Certificate - CertiVerify</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="btn-outline" style="padding: 0.5rem 1rem; border-radius: 0.75rem; font-size: 0.9rem; margin-bottom: 2rem;">&larr; Back to Home</a>
+            <h1>Verification Portal</h1>
+            <p class="subtitle">Enter the Certificate ID to validate its authenticity against our secure records.</p>
+        </header>
+
+        <div class="card">
+            <div class="form-group">
+                <label for="certId">Certificate ID</label>
+                <input type="text" id="certId" placeholder="e.g. CERT-123-ABC" autofocus>
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="verifyCertificate()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                Verify Authenticity
+            </button>
+
+            <div id="resultArea" class="result-area">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+
+        <footer>
+            Note: Every verification attempt is cryptographically logged in our DBMS for security auditing.
+        </footer>
+    </div>
+
+    <div id="toast" class="toast">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-light);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        <span id="toastMessage">Action successful</span>
+    </div>
+
+    <script>
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').innerText = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('Copied to clipboard!');
+            } catch (err) {
+                console.error('Copy failed:', err);
+            }
+        }
+
+        async function verifyCertificate() {
+            const certIdInput = document.getElementById('certId');
+            const certId = certIdInput.value.trim();
+            const resultArea = document.getElementById('resultArea');
+            
+            if (!certId) {
+                certIdInput.focus();
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/verify/${certId}`);
+                const result = await response.json();
+
+                resultArea.style.display = 'block';
+                resultArea.className = 'result-area ' + (result.valid ? 'result-valid' : 'result-invalid');
+
+                if (result.valid) {
+                    const data = result.data;
+                    resultArea.innerHTML = `
+                        <div class="status-badge status-valid">✅ Verified Authentic</div>
+                        <h2>Certificate Confirmed</h2>
+                        <div class="cert-details">
+                            <div class="cert-row">
+                                <span class="label">Certificate ID</span> 
+                                <span class="value" style="font-family: monospace;">
+                                    ${data.cert_id}
+                                    <button class="copy-btn" onclick="copyToClipboard('${data.cert_id}')">Copy</button>
+                                </span>
+                            </div>
+                            <div class="cert-row"><span class="label">Holder Name</span> <span class="value">${data.holder_name}</span></div>
+                            <div class="cert-row"><span class="label">Course/Program</span> <span class="value">${data.course_name}</span></div>
+                            <div class="cert-row"><span class="label">Authority</span> <span class="value">${data.issuing_authority}</span></div>
+                            <div class="cert-row"><span class="label">Issue Date</span> <span class="value">${data.issue_date}</span></div>
+                            <div class="cert-row"><span class="label">Issuer System</span> <span class="value">${data.issuer_name}</span></div>
+                        </div>
+                    `;
+                    showToast('Certificate verified successfully!');
+                } else {
+                    resultArea.innerHTML = `
+                        <div class="status-badge status-invalid">❌ Verification Failed</div>
+                        <h2 style="color: var(--bg-dark);">${result.message}</h2>
+                        <p style="margin-top: 0.5rem; font-size: 1rem; color: var(--text-muted); font-weight: 500;">
+                            The provided ID does not match any authenticated record in our database.
+                        </p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Connection error. Please ensure the server is running.');
+            }
+        }
+    </script>
+</body>
+</html>
